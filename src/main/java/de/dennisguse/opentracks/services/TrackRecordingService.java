@@ -602,7 +602,7 @@ public class TrackRecordingService extends Service {
         }
 
         if (pressureSensorManager != null && pressureSensorManager.isConnected()) {
-            trackPoint.setElevationGain(pressureSensorManager.getElevationGainLoss_m()[0]);
+            trackPoint.setElevationGain(pressureSensorManager.getElevationGain());
         }
 
         TrackPoint lastValidTrackPoint = getLastValidTrackPointInCurrentSegment(track.getId());
