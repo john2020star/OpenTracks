@@ -150,8 +150,11 @@ public class StatsFragment extends Fragment implements TrackDataListener {
     private TextView speedLabel;
     private TextView speedValue;
     private TextView speedUnit;
-    private TextView elevationValue;
-    private TextView elevationUnit;
+    private View elevationCurrentContainer;
+    private TextView elevationCurrentValue;
+    private TextView elevationCurrentUnit;
+    private TextView elevationGainValue;
+    private TextView elevationGainUnit;
     private View coordinateSeparator;
     private View coordinateContainer;
     private TextView latitudeValue;
@@ -195,8 +198,12 @@ public class StatsFragment extends Fragment implements TrackDataListener {
         speedValue = view.findViewById(R.id.stats_speed_value);
         speedUnit = view.findViewById(R.id.stats_speed_unit);
 
-        elevationValue = view.findViewById(R.id.stats_elevation_current_value);
-        elevationUnit = view.findViewById(R.id.stats_elevation_current_unit);
+        elevationCurrentContainer = view.findViewById(R.id.stats_elevation_current_container);
+        elevationCurrentValue = view.findViewById(R.id.stats_elevation_current_value);
+        elevationCurrentUnit = view.findViewById(R.id.stats_elevation_current_unit);
+
+        elevationGainValue = view.findViewById(R.id.stats_elevation_gain_value);
+        elevationGainUnit = view.findViewById(R.id.stats_elevation_gain_unit);
 
         coordinateSeparator = view.findViewById(R.id.stats_coordinate_separator);
         coordinateContainer = view.findViewById(R.id.stats_coordinate_container);
@@ -302,8 +309,12 @@ public class StatsFragment extends Fragment implements TrackDataListener {
         speedValue = null;
         speedUnit = null;
 
-        elevationValue = null;
-        elevationUnit = null;
+        elevationCurrentContainer = null;
+        elevationCurrentValue = null;
+        elevationCurrentUnit = null;
+
+        elevationGainValue = null;
+        elevationGainUnit = null;
 
         coordinateSeparator = null;
         coordinateContainer = null;
@@ -576,15 +587,23 @@ public class StatsFragment extends Fragment implements TrackDataListener {
         }
 
         // Set elevation
-        boolean showElevation = isRecording && PreferencesUtils.isShowStatsElevation(getContext());
+        boolean showElevation = PreferencesUtils.isShowStatsElevation(getContext());
         elevationContainer.setVisibility(showElevation ? View.VISIBLE : View.GONE);
 
         if (showElevation) {
-            double altitude = lastTrackPoint != null && lastTrackPoint.hasAltitude() ? lastTrackPoint.getAltitude() : Double.NaN;
-            Pair<String, String> parts = StringUtils.formatElevation(getContext(), altitude, metricUnits);
+            elevationCurrentContainer.setVisibility(isRecording ? View.VISIBLE : View.GONE);
+            if (isRecording) {
+                double elevation = lastTrackPoint != null && lastTrackPoint.hasAltitude() ? lastTrackPoint.getAltitude() : Double.NaN;
+                Pair<String, String> formattedElevation = StringUtils.formatElevation(getContext(), elevation, metricUnits);
 
-            elevationValue.setText(parts.first);
-            elevationUnit.setText(parts.second);
+                elevationCurrentValue.setText(formattedElevation.first);
+                elevationCurrentUnit.setText(formattedElevation.second);
+            }
+
+            double elevationGain = lastTrackStatistics != null ? lastTrackStatistics.getTotalElevationGain() : Double.NaN;
+            Pair<String, String> formattedElevationGain = StringUtils.formatElevation(getContext(), elevationGain, metricUnits);
+            elevationGainValue.setText(formattedElevationGain.first);
+            elevationGainUnit.setText(formattedElevationGain.second);
         }
 
         // Set coordinate

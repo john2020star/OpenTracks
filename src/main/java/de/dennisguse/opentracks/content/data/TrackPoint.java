@@ -31,6 +31,8 @@ public class TrackPoint {
 
     private final Location location;
 
+    private float elevationGain = Float.NaN;
+
     public TrackPoint() {
         this.location = new Location("");
     }
@@ -96,6 +98,18 @@ public class TrackPoint {
 
     public void setSensorDataSet(SensorDataSet sensorDataSet) {
         this.sensorDataSet = sensorDataSet;
+    }
+
+    public boolean hasElevationGain() {
+        return !Float.isNaN(elevationGain);
+    }
+
+    public float getElevationGain() {
+        return elevationGain;
+    }
+
+    public void setElevationGain(float elevationGain) {
+        this.elevationGain = elevationGain;
     }
 
     public double getLatitude() {

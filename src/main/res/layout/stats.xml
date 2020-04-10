@@ -192,10 +192,6 @@ limitations under the License.
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
-            <LinearLayout style="@style/StatsSmallGroupContainer">
-                <!-- This is a placeholder -->
-            </LinearLayout>
-
             <!-- Elevation -->
             <LinearLayout style="@style/StatsSmallGroupContainer">
 
@@ -210,6 +206,7 @@ limitations under the License.
 
                     <!-- Current elevation -->
                     <LinearLayout
+                        android:id="@+id/stats_elevation_current_container"
                         style="@style/StatsSmallValueContainer"
                         android:layout_gravity="start|bottom">
 
@@ -220,6 +217,34 @@ limitations under the License.
 
                         <TextView
                             android:id="@+id/stats_elevation_current_unit"
+                            style="@style/StatsUnit" />
+                    </LinearLayout>
+                </TableLayout>
+            </LinearLayout>
+
+            <LinearLayout style="@style/StatsSmallGroupContainer">
+
+                <TextView
+                    style="@style/StatsSmallLabel"
+                    android:text="@string/stats_gain" />
+
+                <TableLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center">
+
+                    <!-- Elevation loss -->
+                    <LinearLayout
+                        style="@style/StatsSmallValueContainer"
+                        android:layout_gravity="start|bottom">
+
+                        <TextView
+                            android:id="@+id/stats_elevation_gain_value"
+                            style="@style/StatsSmallValue"
+                            android:value="@string/value_unknown" />
+
+                        <TextView
+                            android:id="@+id/stats_elevation_gain_unit"
                             style="@style/StatsUnit" />
                     </LinearLayout>
                 </TableLayout>

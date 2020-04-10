@@ -220,7 +220,7 @@ public class TrackStatistics {
     }
 
     /**
-     * Gets the total elevation gain in meters. This is calculated as the sum of all positive differences in the smoothed elevation.
+     * Gets the total elevation gain in meters.
      */
     public double getTotalElevationGain() {
         return totalElevationGain_m;

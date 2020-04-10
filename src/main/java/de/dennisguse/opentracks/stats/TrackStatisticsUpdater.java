@@ -25,7 +25,7 @@ import de.dennisguse.opentracks.content.data.TrackPointsColumns;
 import de.dennisguse.opentracks.content.provider.TrackPointIterator;
 import de.dennisguse.opentracks.util.LocationUtils;
 
-import static de.dennisguse.opentracks.services.TrackRecordingService.MAX_NO_MOVEMENT_SPEED;
+import static de.dennisguse.opentracks.services.TrackRecordingService.MAX_NO_MOVEMENT_SPEED_MS;
 
 /**
  * Updater for {@link TrackStatistics}.
@@ -111,7 +111,7 @@ public class TrackStatisticsUpdater {
      * Adds a trackPoint.
      * TODO: This assume trackPoint has a valid time.
      *
-     * @param trackPoint             the trackPoint
+     * @param trackPoint           the trackPoint
      * @param minRecordingDistance the min recording distance
      */
     public void addTrackPoint(TrackPoint trackPoint, int minRecordingDistance) {
@@ -133,8 +133,16 @@ public class TrackStatisticsUpdater {
             return;
         }
 
-        //TODO Use Barometer to compute elevation gain.
-        double elevationDifference = trackPoint.hasAltitude() ? updateElevation(trackPoint.getAltitude()) : 0.0;
+        //Update absolute (GPS-based) elevation
+        if (trackPoint.hasAltitude()) {
+            updateAbsoluteElevation(trackPoint.getAltitude());
+        }
+
+        //Get elevation gain
+        if (trackPoint.hasElevationGain()) {
+            currentSegment.addTotalElevationGain(trackPoint.getElevationGain());
+            Log.d(TAG, "elevation gain: " + trackPoint.getElevationGain());
+        }
 
         if (lastTrackPoint == null || lastMovingTrackPoint == null) {
             lastTrackPoint = trackPoint;
@@ -143,7 +151,7 @@ public class TrackStatisticsUpdater {
         }
 
         double movingDistance = lastMovingTrackPoint.distanceTo(trackPoint);
-        if (movingDistance < minRecordingDistance && (!trackPoint.hasSpeed() || trackPoint.getSpeed() < MAX_NO_MOVEMENT_SPEED)) {
+        if (movingDistance < minRecordingDistance && (!trackPoint.hasSpeed() || trackPoint.getSpeed() < MAX_NO_MOVEMENT_SPEED_MS)) {
             speedBuffer_ms.reset();
             lastTrackPoint = trackPoint;
             return;
@@ -198,7 +206,7 @@ public class TrackStatisticsUpdater {
      */
     @VisibleForTesting
     private void updateSpeed(long time, double speed, long lastLocationTime, double lastLocationSpeed) {
-        if (speed < MAX_NO_MOVEMENT_SPEED) {
+        if (speed < MAX_NO_MOVEMENT_SPEED_MS) {
             speedBuffer_ms.reset();
         } else if (isValidSpeed(time, speed, lastLocationTime, lastLocationSpeed)) {
             speedBuffer_ms.setNext(speed);
@@ -211,23 +219,21 @@ public class TrackStatisticsUpdater {
     }
 
     /**
-     * Updates an elevation reading. Returns the difference.
+     * Updates an elevation reading.
      *
      * @param elevation the elevation
+     * @return the difference
      */
     @VisibleForTesting
-    private double updateElevation(double elevation) {
+    private double updateAbsoluteElevation(double elevation) {
         // Update elevation using the smoothed average
         double oldAverage = elevationBuffer_m.getAverage();
         elevationBuffer_m.setNext(elevation);
         double newAverage = elevationBuffer_m.getAverage();
 
         currentSegment.updateElevationExtremities(newAverage);
-        double difference = newAverage - oldAverage;
-        if (difference > 0) {
-            currentSegment.addTotalElevationGain(difference);
-        }
-        return difference;
+
+        return newAverage - oldAverage;
     }
 
     private TrackStatistics init(long time) {

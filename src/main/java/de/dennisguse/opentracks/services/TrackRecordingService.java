@@ -49,6 +49,7 @@ import de.dennisguse.opentracks.content.provider.CustomContentProvider;
 import de.dennisguse.opentracks.content.provider.TrackPointIterator;
 import de.dennisguse.opentracks.content.sensor.SensorDataSet;
 import de.dennisguse.opentracks.services.sensors.BluetoothRemoteSensorManager;
+import de.dennisguse.opentracks.services.sensors.PressureSensorManager;
 import de.dennisguse.opentracks.services.tasks.AnnouncementPeriodicTaskFactory;
 import de.dennisguse.opentracks.services.tasks.PeriodicTaskExecutor;
 import de.dennisguse.opentracks.stats.TrackStatistics;
@@ -72,7 +73,7 @@ public class TrackRecordingService extends Service {
     // Anything faster than that (in meters per second) will be considered moving.
     private static final String TAG = TrackRecordingService.class.getSimpleName();
 
-    public static final double MAX_NO_MOVEMENT_SPEED = 0.224;
+    public static final double MAX_NO_MOVEMENT_SPEED_MS = 0.224;
 
     // The following variables are set in onCreate:
     private ExecutorService executorService;
@@ -136,6 +137,7 @@ public class TrackRecordingService extends Service {
     // The following variables are set when recording:
     private WakeLock wakeLock;
     private BluetoothRemoteSensorManager remoteSensorManager;
+    private PressureSensorManager pressureSensorManager;
 
     private TrackStatisticsUpdater trackStatisticsUpdater;
     private TrackPoint lastTrackPoint;
@@ -218,6 +220,11 @@ public class TrackRecordingService extends Service {
         if (remoteSensorManager != null) {
             remoteSensorManager.stop();
             remoteSensorManager = null;
+        }
+
+        if (pressureSensorManager != null) {
+            pressureSensorManager.stop(this);
+            pressureSensorManager = null;
         }
 
         // Reverse order from onCreate
@@ -415,6 +422,10 @@ public class TrackRecordingService extends Service {
         // Update instance variables
         remoteSensorManager = new BluetoothRemoteSensorManager(this);
         remoteSensorManager.start();
+
+        pressureSensorManager = new PressureSensorManager();
+        pressureSensorManager.start(this);
+
         lastTrackPoint = null;
         currentSegmentHasLocation = false;
         isIdle = false;
@@ -507,6 +518,11 @@ public class TrackRecordingService extends Service {
             remoteSensorManager.stop();
             remoteSensorManager = null;
         }
+        if (pressureSensorManager != null) {
+            pressureSensorManager.stop(this);
+            pressureSensorManager = null;
+        }
+
         lastTrackPoint = null;
 
         stopGps(trackStopped);
@@ -574,21 +590,25 @@ public class TrackRecordingService extends Service {
         TrackPoint trackPoint = new TrackPoint(location, getSensorDataSet());
         notificationManager.updateTrackPoint(this, trackPoint, recordingGpsAccuracy);
 
-        if (!location.hasAccuracy() || location.getAccuracy() >= recordingGpsAccuracy) {
+        if (!trackPoint.hasAccuracy() || trackPoint.getAccuracy() >= recordingGpsAccuracy) {
             Log.d(TAG, "Ignore onLocationChangedAsync. Poor accuracy.");
             return;
         }
 
         //TODO Necessary?
         // Fix for phones that do not set the time field
-        if (location.getTime() == 0L) {
-            location.setTime(System.currentTimeMillis());
+        if (trackPoint.getTime() == 0L) {
+            trackPoint.setTime(System.currentTimeMillis());
+        }
+
+        if (pressureSensorManager != null && pressureSensorManager.isConnected()) {
+            trackPoint.setElevationGain(pressureSensorManager.getElevationGainLoss_m()[0]);
         }
 
         TrackPoint lastValidTrackPoint = getLastValidTrackPointInCurrentSegment(track.getId());
         long idleTime = 0L;
-        if (lastValidTrackPoint != null && location.getTime() > lastValidTrackPoint.getLocation().getTime()) {
-            idleTime = location.getTime() - lastValidTrackPoint.getLocation().getTime();
+        if (lastValidTrackPoint != null && trackPoint.getTime() > lastValidTrackPoint.getLocation().getTime()) {
+            idleTime = trackPoint.getTime() - lastValidTrackPoint.getLocation().getTime();
         }
         locationListenerPolicy.updateIdleTime(idleTime);
         if (currentRecordingInterval != locationListenerPolicy.getDesiredPollingInterval()) {
@@ -605,7 +625,7 @@ public class TrackRecordingService extends Service {
         }
 
         if (!LocationUtils.isValidLocation(lastValidTrackPoint.getLocation())) {
-            // Should not happen. The current segment should have a location. Just insert the current location.
+            // Should not happen. The current segment should have a trackpoint. Just insert the current trackpoint.
             insertTrackPoint(track, trackPoint, null);
             lastTrackPoint = trackPoint;
             return;
@@ -614,25 +634,33 @@ public class TrackRecordingService extends Service {
         double distanceToLastTrackLocation = location.distanceTo(lastValidTrackPoint.getLocation());
         if (distanceToLastTrackLocation > maxRecordingDistance) {
             insertTrackPoint(track, lastTrackPoint, lastValidTrackPoint);
+            pressureSensorManager.reset();
             insertTrackPoint(track, TrackPoint.createPause(), null);
 
             insertTrackPoint(track, trackPoint, null);
             isIdle = false;
         } else if (trackPoint.getSensorDataSet() != null || distanceToLastTrackLocation >= recordingDistanceInterval) {
             insertTrackPoint(track, lastTrackPoint, lastValidTrackPoint);
+            pressureSensorManager.reset();
+
             insertTrackPoint(track, trackPoint, null);
             isIdle = false;
-        } else if (!isIdle && location.hasSpeed() && location.getSpeed() < MAX_NO_MOVEMENT_SPEED) {
+        } else if (!isIdle && trackPoint.hasSpeed() && trackPoint.getSpeed() < MAX_NO_MOVEMENT_SPEED_MS) {
             insertTrackPoint(track, lastTrackPoint, lastValidTrackPoint);
+            pressureSensorManager.reset();
+
             insertTrackPoint(track, trackPoint, null);
             isIdle = true;
-        } else if (isIdle && location.hasSpeed() && location.getSpeed() >= MAX_NO_MOVEMENT_SPEED) {
+        } else if (isIdle && trackPoint.hasSpeed() && trackPoint.getSpeed() >= MAX_NO_MOVEMENT_SPEED_MS) {
             insertTrackPoint(track, lastTrackPoint, lastValidTrackPoint);
+            pressureSensorManager.reset();
+
             insertTrackPoint(track, trackPoint, null);
             isIdle = false;
         } else {
-            Log.d(TAG, "Not recording location, idle");
+            Log.d(TAG, "Not recording trackPoint, idle");
         }
+
         lastTrackPoint = trackPoint;
     }
 
