@@ -880,4 +880,8 @@ public class CustomContentProviderUtilsTest {
         Assert.assertEquals("42,43,44", ContentProviderUtils.formatIdListForUri(new long[]{42, 43, 44}));
     }
 
+    @Test
+    public void ciFailure() {
+        context.getFilesDir();
+    }
 }
